@@ -2,6 +2,7 @@ const express = require('express')
 const app = express()
 require('dotenv').config()
 const cors = require('cors');
+const jwt=require('jsonwebtoken');
 const port = process.env.PORT || 5000;
 
 //middleware
@@ -30,6 +31,25 @@ async function run() {
     const salesCollections = client.db('topOrion').collection('sales');
     const postsCollections = client.db('topOrion').collection('posts');
 
+    app.post('/jwt',async(req,res)=>{
+      const user=req.body;
+      const token=jwt.sign(user,'secret',{expiresIn:'1h'})
+      res.send({token})
+    })
+
+    const verifyToken=(req,res,next) => {
+      console.log('inside verifyToken',req.headers.authorization)
+      if(!req.headers.authorization){
+        return res.status(401).send({message:"Invalid authorization"})
+      }
+      const token=req.headers.authorization.split(' ')[1];
+
+      // next();
+    }
+    app.get('/users',async(req,res)=>{
+      const users = await usersCollections.find({}).toArray();
+      res.send(users);
+    })
     app.post('/users', async (req, res) => {
       const user = req.body;
       const query = { email: user.email }
@@ -40,6 +60,23 @@ async function run() {
       const result = await usersCollections.insertOne(user);
       res.send(result);
     });
+    app.delete('/users/:id',async(req,res)=>{
+      const id = req.params.id;
+      const query={_id:new ObjectId(id)}
+      const result = await usersCollections.deleteOne(query);
+      res.send(result);
+    })
+    app.patch('/users/admin/:id',async(req,res)=>{
+      const id=req.params.id;
+      const filter={_id:new ObjectId(id)}
+      const updatedDoc={
+        $set:{
+          role:'admin'
+        }
+      }
+      const result =await usersCollections.updateOne(filter,updatedDoc)
+      res.send(result);
+    })
     app.post('/sales', async (req, res) => {
       const sale = req.body;
       const result = await salesCollections.insertOne(sale);
